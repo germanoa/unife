@@ -17,8 +17,6 @@ int main (int argc, char *argv[])
 {
     int system;
 
-    /* podemos declarar aqui as estruturas de dados e inicializar em libsisop_init? */
-
     system = libsisop_init();    
     printf("system = %d\n",system);
     return system;
