@@ -31,6 +31,7 @@
 #define MEDIUM 1
 #define LOW 2
 
+
 /*
  * PCB (Process Control Block)
  */
@@ -60,7 +61,6 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg);
 
 /*
  * Yielding process, nothing interesting to do...
- *
  */
 void mproc_yield(void);
 
@@ -76,8 +76,26 @@ struct map_join {
 };
 
 /* "local" functions :p */
-static inline int in_proc_state(proc_struct *proc, proc_state *proc_state);
-static inline int out_proc_state(proc_state *proc_state); // dont need proc_struct because is the first found.
+static inline int in_proc_state(proc_struct *proc, proc_state *procs_state)
+{
+    int my_prio = 0;
+    proc_state *procs_tmp;
+    procs_tmp = procs_state;
+    while (! my_prio)
+    {   
+        if (proc->prio == procs_tmp->prio)
+        {   
+            //apenas teste : depois tem q usar funcao de insercao na lista;
+            procs_tmp->proc = proc;
+            my_prio = 1;
+        }   
+        else procs_tmp = procs_tmp->lower_prio;
+    }   
+    return 0;
+}
+
+//static inline int in_proc_state(proc_struct *proc, proc_state *proc_state);
+//static inline int out_proc_state(proc_state *proc_state); // dont need proc_struct because is the first found.
 
 /*
  * Init unife.
@@ -92,6 +110,7 @@ void scheduler(void);
 /*
  * Statistics.
  */
+typedef struct stats_unife stats_unife;
 struct stats_unife {
     uint8_t ready_procs;
     uint8_t blocked_procs;

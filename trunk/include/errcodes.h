@@ -1,0 +1,2 @@
+#define MALLOCERR 200
+#define PRIOERR 201
