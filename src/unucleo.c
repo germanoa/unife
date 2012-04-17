@@ -14,6 +14,7 @@
 #include <ucontext.h>
 #include <stdint.h>
 #include <include/unucleo.h>
+#include <include/list.h>
 #include <include/errcodes.h>
 #include <stdio.h>
 #include <malloc.h>
@@ -83,7 +84,7 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
 
     int ret;
     ret = new->pid;
-    if (! in_proc_state(new, procs_ready)) { ret = -1; }
+    if (! __in_proc_state(new, procs_ready)) { ret = -1; }
 
     return ret;
 }
