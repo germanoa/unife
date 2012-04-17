@@ -3,6 +3,8 @@
  *
  * headers do unife.
  * 
+ * internal functions (__xxx) must not be used directly.
+ * 
  * TODO - vamos dividir em mais de um modulo?
  *
  * Germano Andersson <germanoa@gmail.com>
@@ -75,8 +77,7 @@ struct map_join {
     uint8_t pid_joined;
 };
 
-/* "local" functions :p */
-static inline int in_proc_state(proc_struct *proc, proc_state *procs_state)
+static inline int __in_proc_state(proc_struct *proc, proc_state *procs_state)
 {
     int my_prio = 0;
     proc_state *procs_tmp;
@@ -94,8 +95,7 @@ static inline int in_proc_state(proc_struct *proc, proc_state *procs_state)
     return 0;
 }
 
-//static inline int in_proc_state(proc_struct *proc, proc_state *proc_state);
-//static inline int out_proc_state(proc_state *proc_state); // dont need proc_struct because is the first found.
+//static inline int __out_proc_state(proc_state *proc_state) // dont need proc_struct because is the first found.
 
 /*
  * Init unife.
