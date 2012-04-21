@@ -4,7 +4,7 @@
  * unife source.
  * 
  * TODO - vamos dividir em mais de um modulo?
- *
+ *      - qual o tamanho ideal para alocarmos memoria aos proc_state? por enquanto MAXPROC, mas nao faz mto sentido
  * Germano Andersson <germanoa@gmail.com>
  * Felipe Lahti <felipe.lahti@gmail.com>
  *
@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <malloc.h>
 
-proc_state *procs_ready, *procs_blocked, *procs_tmp;
+proc_state *ready, *blocked, *tmp_state, *lower_state;
 proc_struct *proc_running;
 map_join *joins;
 stats_unife *stats;
@@ -28,27 +28,31 @@ int libsisop_init()
 {
     int i;
     // Create and alloc mem to proc state ready list with prio
-    if ( (procs_ready = malloc(MAXPROC * sizeof(proc_state))) == NULL ) {return MALLOCERR; }
-    procs_tmp = procs_ready;
+    if ( (ready = malloc(sizeof(proc_state))) == NULL ) {return MALLOCERR; }
+    INIT_LIST_HEAD(&ready->lower); // init queue for state ready
+    tmp_state = ready;
     for (i=HIGH;i<=LOW;i++)
     {
-        procs_tmp->prio = i;
-        procs_tmp->proc = NULL;
-        procs_tmp->next = NULL;
-        if ( (procs_tmp->lower_prio = malloc(MAXPROC * sizeof(proc_state))) == NULL ) {return MALLOCERR; }
-        procs_tmp = procs_tmp->lower_prio; 
+        if ( (lower_state = malloc(sizeof(proc_state))) == NULL ) {return MALLOCERR; }
+        list_add(&(lower_state->lower), &(tmp_state->lower));
+        tmp_state = lower_state;
+        tmp_state->prio = i;
+        if ( (tmp_state->proc_head = malloc(sizeof(proc_struct))) == NULL ) { return MALLOCERR; }
+        INIT_LIST_HEAD(&tmp_state->proc_head->next); //init queue for this state+prio
     }
 
     // Create and alloc mem to proc state blocked list with prio
-    if ( (procs_blocked = malloc(MAXPROC * sizeof(proc_state))) == NULL ) { return MALLOCERR; }
-    procs_tmp = procs_blocked;
+    if ( (blocked = malloc(sizeof(proc_state))) == NULL ) { return MALLOCERR; }
+    INIT_LIST_HEAD(&blocked->lower); //init queue for state blocked
+    tmp_state = blocked;
     for (i=HIGH;i<=LOW;i++)
     {
-        procs_tmp->prio = i;
-        procs_tmp->proc = NULL;
-        procs_tmp->next = NULL;
-        if ( (procs_tmp->lower_prio = malloc(MAXPROC * sizeof(proc_state))) == NULL ) {return MALLOCERR; }
-        procs_tmp = procs_tmp->lower_prio; 
+        if ( (lower_state = malloc(sizeof(proc_state))) == NULL ) {return MALLOCERR; }
+        list_add(&(lower_state->lower), &(tmp_state->lower));
+        tmp_state = lower_state;
+        tmp_state->prio = i;
+        if ( (tmp_state->proc_head = malloc(sizeof(proc_struct))) == NULL ) { return MALLOCERR; }
+        INIT_LIST_HEAD(&tmp_state->proc_head->next); //init queue for this state+prio
     }
 
     // Create and alloc mem to statistics/contability of the system
@@ -69,7 +73,6 @@ int libsisop_init()
     return 0;
 }
 
-
 int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
 {
     if (prio < MEDIUM || prio > LOW) { return PRIOERR; }
@@ -84,11 +87,9 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
 
     int ret;
     ret = new->pid;
-    if (! __in_proc_state(new, procs_ready)) { ret = -1; }
-
+    if (! __in_proc_state(new, ready)) { ret = -1; }
     return ret;
 }
-
 
 void scheduler(void)
 {
@@ -100,25 +101,16 @@ void scheduler(void)
         //      (fazer para todos processos em blocked, pois pode haver mais de um joined ao proc q terminou).
     }
 
-    int there_are_procs = 1;
-
-    procs_tmp = procs_ready;
-    while ( there_are_procs )
-    {
-        if (procs_tmp->proc != NULL)
-        {
-            proc_running = procs_tmp->proc;
-            procs_tmp->proc = NULL; // teste, depois tem q usar funcao deleta lista
-            //chavear contexto & break(fazer com que no retorno do swapcontext retorne ao inicio da funcao)
-            
-            // por aqui tem o dispatcher. ele é um simples chaveamento de contexto?
-            printf("PID: %d em prio %d\n",proc_running->pid, procs_tmp->prio);
-
+    proc_state *tmp_state, *tmp;
+    proc_struct *ptmp;
+    tmp_state = ready;
+    struct list_head  *i,*j; 
+    list_for_each(i, &tmp_state->lower) { //iterator over prios of ready state
+        tmp = list_entry(i, proc_state, lower);
+        list_for_each(j,&tmp->proc_head->next) { //iterator over procs
+            ptmp = list_entry(j, proc_struct, next);
+            //aqui vai o dispatcher
+            if (tmp->proc_head != NULL) { printf ("proc:%p; pid:%d, prio:%d\n",ptmp, ptmp->pid, ptmp->prio); }
         }
-        else if (procs_tmp->lower_prio != NULL)
-        { 
-            procs_tmp = procs_tmp->lower_prio;    
-        }
-        else there_are_procs = 0;
-    }
+    }   
 }

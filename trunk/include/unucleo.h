@@ -15,6 +15,9 @@
 
 #include <ucontext.h>
 #include <stdint.h>
+#include <stdio.h>
+
+#include <include/list.h>
 
 #define MINPROC 0
 #define MAXPROC 128
@@ -43,17 +46,17 @@ struct proc_struct {
     uint8_t state;  /* 0-ready  1-running   2-blocked */
     uint8_t prio;   /* 0-high(only unife) 1-medium 2-low */
     ucontext_t context;
+    struct list_head next;
 };
 
 /*
- * Proc State list
+ * Proc State 
  */
 typedef struct proc_state proc_state;
 struct proc_state {
     uint8_t prio;   /* 0-high(only unife) 1-medium 2-low */
-    proc_struct *proc;
-    proc_struct *next;
-    proc_state *lower_prio;
+    proc_struct *proc_head; /* The first proc in this state+prio */
+    struct list_head lower; /* The lower prio of the same state */
 };
 
 /*
@@ -79,20 +82,17 @@ struct map_join {
 
 static inline int __in_proc_state(proc_struct *proc, proc_state *procs_state)
 {
-    int my_prio = 0;
-    proc_state *procs_tmp;
-    procs_tmp = procs_state;
-    while (! my_prio)
-    {   
-        if (proc->prio == procs_tmp->prio)
-        {   
-            //apenas teste : depois tem q usar funcao de insercao na lista;
-            procs_tmp->proc = proc;
-            my_prio = 1;
-        }   
-        else procs_tmp = procs_tmp->lower_prio;
-    }   
-    return 0;
+    proc_state *tmp_state, *tmp;
+    tmp_state = procs_state;
+    struct list_head  *i;
+    list_for_each(i, &tmp_state->lower) {
+        tmp = list_entry(i, proc_state, lower);
+        if (proc->prio == tmp->prio)
+        {
+                list_add_tail(&(proc->next), &(tmp->proc_head->next));   
+        }
+    }
+    return 1;
 }
 
 //static inline int __out_proc_state(proc_state *proc_state) // dont need proc_struct because is the first found.
