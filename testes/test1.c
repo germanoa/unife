@@ -27,13 +27,6 @@ int main (int argc, char *argv[])
 
     mproc_create(2, f1, &i);    
     mproc_create(1, f1, &i);    
-    mproc_create(3, f1, &i);    
-    mproc_create(1, f1, &i);    
-    mproc_create(5, f1, &i);    
-    mproc_create(1, f1, &i);    
-    mproc_create(2, f1, &i);    
-    mproc_create(1, f1, &i);    
-    mproc_create(1, f1, &i);    
 
     scheduler();
 

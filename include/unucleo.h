@@ -38,6 +38,12 @@
 
 
 /*
+ * context
+ */
+#define STACK_SIZE 16384
+
+
+/*
  * PCB (Process Control Block)
  */
 typedef struct proc_struct proc_struct;
@@ -58,6 +64,7 @@ struct proc_state {
     proc_struct *proc_head; /* The first proc in this state+prio */
     struct list_head lower; /* The lower prio of the same state */
 };
+
 
 /*
  * Creating process. 
@@ -80,10 +87,10 @@ struct map_join {
     uint8_t pid_joined;
 };
 
-static inline int __in_proc_state(proc_struct *proc, proc_state *procs_state)
+static inline int __in_proc_state(proc_struct *proc, proc_state *state)
 {
     proc_state *tmp_state, *tmp;
-    tmp_state = procs_state;
+    tmp_state = state;
     struct list_head  *i;
     list_for_each(i, &tmp_state->lower) {
         tmp = list_entry(i, proc_state, lower);
@@ -95,7 +102,14 @@ static inline int __in_proc_state(proc_struct *proc, proc_state *procs_state)
     return 1;
 }
 
-//static inline int __out_proc_state(proc_state *proc_state) // dont need proc_struct because is the first found.
+static inline int __out_proc_state(proc_struct *proc)
+{
+    list_del(&proc->next);
+    return 1;
+}
+
+
+
 
 /*
  * Init unife.
