@@ -68,7 +68,7 @@ int libsisop_init()
     if ( (joins = malloc(MAXPROC * MAXPROC *  sizeof(map_join))) == NULL ) { return MALLOCERR; }
 
     //Zero proc run
-    proc_running = NULL;
+    if ( (proc_running = malloc(sizeof(proc_struct))) == NULL ) { return MALLOCERR; }
 
     return 0;
 }
@@ -83,7 +83,15 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
     new->pid = ++stats->last_pid;
     new->state= READY;
     new->prio = prio;
-    //new.context = NULL;
+
+    /*
+    char stack[STACK_SIZE]; //nao deveriamos alocar memoria para este stack?
+    getcontext(&new->context);
+    new->context.uc_stack.ss_sp = stack;
+    new->context.uc_stack.ss_size = sizeof stack;
+    new->context.uc_link = NULL;   
+    makecontext(&new->context,start_routine,0); //testando
+    */
 
     int ret;
     ret = new->pid;
@@ -93,24 +101,26 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
 
 void scheduler(void)
 {
-    if (proc_running != NULL) //Not first round
+    /*
+    if (nao eh primeira rodada, verificar mapa de joins)
     {
-        printf("verificar se ha join\n");
         // se existe algum proc blocked joined ao proc_running
         //      enviar proc blocked para ready & proc_running = NULL.
         //      (fazer para todos processos em blocked, pois pode haver mais de um joined ao proc q terminou).
     }
+    */
 
     proc_state *tmp_state, *tmp;
-    proc_struct *ptmp;
     tmp_state = ready;
     struct list_head  *i,*j; 
     list_for_each(i, &tmp_state->lower) { //iterator over prios of ready state
         tmp = list_entry(i, proc_state, lower);
         list_for_each(j,&tmp->proc_head->next) { //iterator over procs
-            ptmp = list_entry(j, proc_struct, next);
+            proc_running = list_entry(j, proc_struct, next);
+            printf ("proc:%p; pid:%d, prio:%d\n",proc_running, proc_running->pid, proc_running->prio);
+            __out_proc_state(proc_running);
             //aqui vai o dispatcher
-            if (tmp->proc_head != NULL) { printf ("proc:%p; pid:%d, prio:%d\n",ptmp, ptmp->pid, ptmp->prio); }
+            //if (tmp->proc_head != NULL) { printf ("proc:%p; pid:%d, prio:%d\n",proc_running, proc_running->pid, proc_running->prio); }
         }
     }   
 }
