@@ -40,7 +40,7 @@
 /*
  * context
  */
-#define STACK_SIZE 16384
+#define STACK_SIZE 1024*64
 
 
 /*
@@ -107,9 +107,6 @@ static inline int __out_proc_state(proc_struct *proc)
     list_del(&proc->next);
     return 1;
 }
-
-
-
 
 /*
  * Init unife.
