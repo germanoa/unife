@@ -11,13 +11,17 @@
  * 2012-XX-XX
  */
 
-#include <ucontext.h>
-#include <stdint.h>
+
 #include <include/unucleo.h>
 #include <include/list.h>
 #include <include/errcodes.h>
+
+#include <ucontext.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <malloc.h>
+#include <stdbool.h>
+
 
 proc_state *ready, *blocked, *tmp_state, *lower_state;
 proc_struct *proc_running;
@@ -98,28 +102,40 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
     return ret;
 }
 
+void mproc_yield(void) {
+    __in_proc_state(proc_running, ready);
+    swapcontext(&proc_running->context, &c_sched);
+}
+
 void scheduler(void)
 {
     /*
-    if (nao eh primeira rodada, verificar mapa de joins)
-    {
-        // se existe algum proc blocked joined ao proc_running
-        //      enviar proc blocked para ready & proc_running = NULL.
-        //      (fazer para todos processos em blocked, pois pode haver mais de um joined ao proc q terminou).
-    }
+        receberah alteracoes com a implementacao do join
     */
 
     proc_state *tmp_state, *tmp;
-    tmp_state = ready;
     struct list_head  *i,*j; 
-    list_for_each(i, &tmp_state->lower) { //iterator over prios of ready state
-        tmp = list_entry(i, proc_state, lower);
-        list_for_each(j,&tmp->proc_head->next) { //iterator over procs
-            proc_running = list_entry(j, proc_struct, next);
-            printf ("proc:%p; pid:%d, prio:%d\n",proc_running, proc_running->pid, proc_running->prio);
-            __out_proc_state(proc_running);
-            //aqui vai o dispatcher
-            swapcontext(&c_sched, &proc_running->context);
-        }
-    }   
+    int there_are_procs = true;
+    int new_sched_round;
+
+    while (there_are_procs) {
+        there_are_procs = false;
+        new_sched_round = false;
+        tmp_state = ready;
+        list_for_each(i, &tmp_state->lower) { //iterator over prios of ready state
+            tmp = list_entry(i, proc_state, lower);
+            printf ("### STATE prio:%d\n",tmp->prio);
+            list_for_each(j,&tmp->proc_head->next) { //iterator over procs
+                there_are_procs = true;
+                proc_running = list_entry(j, proc_struct, next);
+                printf ("#PROC pid:%d\n",proc_running->pid);
+                __out_proc_state(proc_running);
+                //aqui vai o dispatcher
+                swapcontext(&c_sched, &proc_running->context);
+                new_sched_round=true;
+                break;
+            }
+        if (new_sched_round) break; //some proc executed, we need init sched again
+        }   
+    }
 }
