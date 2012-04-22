@@ -23,6 +23,7 @@ proc_state *ready, *blocked, *tmp_state, *lower_state;
 proc_struct *proc_running;
 map_join *joins;
 stats_unife *stats;
+ucontext_t c_sched;
 
 int libsisop_init()
 {
@@ -84,14 +85,12 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
     new->state= READY;
     new->prio = prio;
 
-    /*
-    char stack[STACK_SIZE]; //nao deveriamos alocar memoria para este stack?
     getcontext(&new->context);
-    new->context.uc_stack.ss_sp = stack;
-    new->context.uc_stack.ss_size = sizeof stack;
-    new->context.uc_link = NULL;   
+    new->context.uc_stack.ss_sp = malloc(STACK_SIZE);
+    new->context.uc_stack.ss_size = STACK_SIZE;
+    new->context.uc_link = &c_sched;   
+    //makecontext(&new->context,start_routine,1, &arg); //testando
     makecontext(&new->context,start_routine,0); //testando
-    */
 
     int ret;
     ret = new->pid;
@@ -120,7 +119,7 @@ void scheduler(void)
             printf ("proc:%p; pid:%d, prio:%d\n",proc_running, proc_running->pid, proc_running->prio);
             __out_proc_state(proc_running);
             //aqui vai o dispatcher
-            //if (tmp->proc_head != NULL) { printf ("proc:%p; pid:%d, prio:%d\n",proc_running, proc_running->pid, proc_running->prio); }
+            swapcontext(&c_sched, &proc_running->context);
         }
     }   
 }
