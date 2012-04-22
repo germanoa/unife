@@ -1,0 +1,7 @@
+makecontext com argumentos
+limpar o warning da compilacao
+ativar as statisticas
+implementar join
+documentar (criar um manual e preencher o relatorio)
+criar muitos testes
+refatoracao
