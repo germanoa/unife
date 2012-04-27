@@ -4,7 +4,6 @@
  * unife source.
  * 
  * TODO - vamos dividir em mais de um modulo?
- *      - qual o tamanho ideal para alocarmos memoria aos proc_state? por enquanto MAXPROC, mas nao faz mto sentido
  * Germano Andersson <germanoa@gmail.com>
  * Felipe Lahti <felipe.lahti@gmail.com>
  *
@@ -93,8 +92,8 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
     new->context.uc_stack.ss_sp = malloc(STACK_SIZE);
     new->context.uc_stack.ss_size = STACK_SIZE;
     new->context.uc_link = &c_sched;   
-    //makecontext(&new->context,start_routine,1, &arg); //testando
-    makecontext(&new->context,start_routine,0); //testando
+    makecontext(&new->context,(void (*)(void))start_routine,1,arg); //testando
+
 
     int ret;
     ret = new->pid;
@@ -124,11 +123,11 @@ void scheduler(void)
         tmp_state = ready;
         list_for_each(i, &tmp_state->lower) { //iterator over prios of ready state
             tmp = list_entry(i, proc_state, lower);
-            printf ("### STATE prio:%d\n",tmp->prio);
+            //printf ("### STATE prio:%d\n",tmp->prio);
             list_for_each(j,&tmp->proc_head->next) { //iterator over procs
                 there_are_procs = true;
                 proc_running = list_entry(j, proc_struct, next);
-                printf ("#PROC pid:%d\n",proc_running->pid);
+                //printf ("#PROC pid:%d\n",proc_running->pid);
                 __out_proc_state(proc_running);
                 //aqui vai o dispatcher
                 swapcontext(&c_sched, &proc_running->context);
