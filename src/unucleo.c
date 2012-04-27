@@ -69,7 +69,8 @@ int libsisop_init()
     stats->last_pid=MINPROC;
 
     //Create and alloc mem to join procs map
-    if ( (joins = malloc(MAXPROC * MAXPROC *  sizeof(map_join))) == NULL ) { return MALLOCERR; }
+    if ( (joins = malloc(sizeof(map_join))) == NULL ) { return MALLOCERR; }
+    INIT_LIST_HEAD(&joins->next); //init queue for map joins 
 
     //Zero proc run
     if ( (proc_running = malloc(sizeof(proc_struct))) == NULL ) { return MALLOCERR; }
@@ -80,6 +81,8 @@ int libsisop_init()
 int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
 {
     if (prio < MEDIUM || prio > LOW) { return PRIOERR; }
+
+    if (stats->last_pid == MAXPROC) { return MAXPROCERR; }
     
     //Populate PCB
     proc_struct *new;
@@ -108,26 +111,51 @@ void mproc_yield(void) {
     swapcontext(&proc_running->context, &c_sched);
 }
 
+int mproc_join(uint8_t pid)
+{
+    int ret = 0;
+    if (! __in_proc_state(proc_running, blocked)) { ret = -1; }
+    else
+    {
+        __in_join(pid, proc_running, joins);
+        stats->blocked_procs++;
+        swapcontext(&proc_running->context, &c_sched);
+    }
+    return ret;
+}
+
 void scheduler(void)
 {
-    /*
-        receberah alteracoes com a implementacao do join
-    */
-
-    proc_state *tmp_state, *tmp;
-    struct list_head  *i,*j; 
+    proc_state *tmp_state;
+    map_join *tmp_join;
+    struct list_head  *h, *i,*j; 
     int there_are_procs = true;
     int new_sched_round;
 
     while (there_are_procs) {
         stats->nr_scheds++;
         there_are_procs = false;
+
+        // Looking for joins to free
+        list_for_each(h, &joins->next) {
+            tmp_join = list_entry(h,map_join, next);
+            // if pid not present at ready and blocked, join can free
+            if ( (! __found_join(tmp_join->pid_joined, ready)) && (! __found_join(tmp_join->pid_joined, blocked)) )
+            {
+                __print_stats(stats);
+                __out_join(tmp_join);                            
+                __out_proc_state(tmp_join->proc);                            
+                __in_proc_state(tmp_join->proc, ready);
+                stats->blocked_procs--;
+                stats->ready_procs++;
+            }
+        }
+
         new_sched_round = false;
-        tmp_state = ready;
-        list_for_each(i, &tmp_state->lower) { //iterator over prios of ready state
-            tmp = list_entry(i, proc_state, lower);
-            //printf ("### STATE prio:%d\n",tmp->prio);
-            list_for_each(j,&tmp->proc_head->next) { //iterator over procs
+        list_for_each(i, &ready->lower) { //iterator over prios of ready state
+            tmp_state = list_entry(i, proc_state, lower);
+            //printf ("### STATE READY prio:%d\n",tmp->prio);
+            list_for_each(j,&tmp_state->proc_head->next) { //iterator over procs
                 there_are_procs = true;
                 proc_running = list_entry(j, proc_struct, next);
                 //printf ("#PROC pid:%d\n",proc_running->pid);
@@ -140,6 +168,7 @@ void scheduler(void)
                 new_sched_round=true;
                 break;
             }
+        if (stats->blocked_procs > 0) {there_are_procs = true; }
         if (new_sched_round) break; //some proc executed, we need init sched again
         }   
     }

@@ -1,5 +1,4 @@
-implementar join - lahti
 documentar (criar um manual e preencher o relatorio) - lahti
 criar muitos testes - lahti
 refatoracao - germano e lahti
-melhorar makefile - germano
+melhorar makefile - lahti

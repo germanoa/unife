@@ -5,20 +5,24 @@
  * 
  * internal functions (__xxx) must not be used directly.
  * 
- * TODO - vamos dividir em mais de um modulo?
- *
  * Germano Andersson <germanoa@gmail.com>
  * Felipe Lahti <felipe.lahti@gmail.com>
  *
  * 2012-XX-XX
  */
 
+#include <include/list.h>
+#include <include/errcodes.h>
+
 #include <ucontext.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <malloc.h>
 
-#include <include/list.h>
 
+/*
+ * process capacity
+ */
 #define MINPROC 0
 #define MAXPROC 128
 
@@ -83,23 +87,66 @@ int mproc_join(uint8_t pid);
 
 typedef struct map_join map_join;
 struct map_join {
-    uint8_t pid;
+    proc_struct *proc;
     uint8_t pid_joined;
+    struct list_head next;
 };
+
+static inline int __in_join(uint8_t pid, proc_struct *proc, map_join *joins)
+{
+    int ret = 1;
+    map_join *tmp_join;
+    if ( (tmp_join = malloc(sizeof(map_join))) == NULL ) { return MALLOCERR; }
+    else
+    {
+        tmp_join->proc = proc;
+        tmp_join->pid_joined = pid;
+        list_add_tail(&(tmp_join->next), &(joins->next));
+    }
+    return ret;
+}
+
+static inline int __out_join(map_join *join)
+{
+    list_del(&join->next);
+    return 1;
+}
+
+static inline int __found_join(uint8_t pid, proc_state *state)
+{
+    proc_struct *tmp_proc;
+    proc_state *tmp_state;
+    struct list_head *i,*j;
+    list_for_each(i, &state->lower) { 
+        tmp_state = list_entry(i, proc_state, lower);
+        list_for_each(j,&tmp_state->proc_head->next) { //iterator over procs
+            tmp_proc = list_entry(j, proc_struct, next);
+            if (tmp_proc->pid == pid)
+            {
+                //printf ("encontrei pid %d no state %p\n",pid,tmp_state);
+                return 1;
+            }    
+        }
+    }
+    return 0;
+}
+
 
 static inline int __in_proc_state(proc_struct *proc, proc_state *state)
 {
+    int ret = 1;
     proc_state *tmp_state, *tmp;
     tmp_state = state;
     struct list_head  *i;
     list_for_each(i, &tmp_state->lower) {
         tmp = list_entry(i, proc_state, lower);
-        if (proc->prio == tmp->prio)
+        if (tmp == NULL) { ret = -1; }
+        else if (proc->prio == tmp->prio)
         {
                 list_add_tail(&(proc->next), &(tmp->proc_head->next));   
         }
     }
-    return 1;
+    return ret;
 }
 
 static inline int __out_proc_state(proc_struct *proc)
@@ -139,6 +186,6 @@ static inline void __print_stats(stats_unife *stats)
     printf("# PID last proc running: %d\n",stats->pid_proc_running_now);
     printf("# Proc switches: %d\n",stats->nr_switches_procs);
     printf("# Schedules: %d\n",stats->nr_scheds);
-    printf("# Next PID available: %d\n",stats->last_pid+1);
+    printf("# Last PID used: %d\n",stats->last_pid);
     printf("######################################################\n");
 }
