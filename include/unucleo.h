@@ -130,3 +130,15 @@ struct stats_unife {
     int nr_scheds;
     uint8_t last_pid;
 };
+
+static inline void __print_stats(stats_unife *stats)
+{
+    printf("######################################################\n");
+    printf("# Ready process: %d\n",stats->ready_procs);
+    printf("# Blocked process: %d\n",stats->blocked_procs);
+    printf("# PID last proc running: %d\n",stats->pid_proc_running_now);
+    printf("# Proc switches: %d\n",stats->nr_switches_procs);
+    printf("# Schedules: %d\n",stats->nr_scheds);
+    printf("# Next PID available: %d\n",stats->last_pid+1);
+    printf("######################################################\n");
+}

@@ -1,6 +1,3 @@
-makecontext com argumentos - germano
-limpar o warning da compilacao - germano
-ativar as statisticas - lahti
 implementar join - lahti
 documentar (criar um manual e preencher o relatorio) - lahti
 criar muitos testes - lahti
