@@ -94,6 +94,7 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
     new->context.uc_link = &c_sched;   
     makecontext(&new->context,(void (*)(void))start_routine,1,arg); //testando
 
+    stats->ready_procs++;
 
     int ret;
     ret = new->pid;
@@ -103,6 +104,7 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
 
 void mproc_yield(void) {
     __in_proc_state(proc_running, ready);
+    stats->ready_procs++;
     swapcontext(&proc_running->context, &c_sched);
 }
 
@@ -118,6 +120,7 @@ void scheduler(void)
     int new_sched_round;
 
     while (there_are_procs) {
+        stats->nr_scheds++;
         there_are_procs = false;
         new_sched_round = false;
         tmp_state = ready;
@@ -129,7 +132,10 @@ void scheduler(void)
                 proc_running = list_entry(j, proc_struct, next);
                 //printf ("#PROC pid:%d\n",proc_running->pid);
                 __out_proc_state(proc_running);
+                stats->ready_procs--;
                 //aqui vai o dispatcher
+                stats->pid_proc_running_now = proc_running->pid;
+                stats->nr_switches_procs++;
                 swapcontext(&c_sched, &proc_running->context);
                 new_sched_round=true;
                 break;
@@ -137,4 +143,5 @@ void scheduler(void)
         if (new_sched_round) break; //some proc executed, we need init sched again
         }   
     }
+    __print_stats(stats);
 }
