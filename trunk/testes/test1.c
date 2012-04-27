@@ -22,6 +22,7 @@ void *f2(void *arg)
     i = 5;
     mproc_create(1, f1, &i);    
     mproc_yield();
+    mproc_join(1);
     printf ("fim f2\n");
     return NULL;
 }

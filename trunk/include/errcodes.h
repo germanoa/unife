@@ -1,2 +1,3 @@
 #define MALLOCERR 200
 #define PRIOERR 201
+#define MAXPROCERR 202
