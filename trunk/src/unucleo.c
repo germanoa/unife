@@ -3,7 +3,6 @@
  *
  * unife source.
  * 
- * TODO - vamos dividir em mais de um modulo?
  * Germano Andersson <germanoa@gmail.com>
  * Felipe Lahti <felipe.lahti@gmail.com>
  *
@@ -13,7 +12,7 @@
 
 #include <include/unucleo.h>
 #include <include/list.h>
-#include <include/errcodes.h>
+#include <include/retcodes.h>
 
 #include <ucontext.h>
 #include <stdint.h>
@@ -75,7 +74,7 @@ int libsisop_init()
     //Zero proc run
     if ( (proc_running = malloc(sizeof(proc_struct))) == NULL ) { return MALLOCERR; }
 
-    return 0;
+    return OK;
 }
 
 int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
@@ -100,8 +99,8 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
     stats->ready_procs++;
 
     int ret;
-    ret = new->pid;
-    if (! __in_proc_state(new, ready)) { ret = -1; }
+    ret = __in_proc_state(new, ready);
+    if (ret == 0) { ret = new->pid; }
     return ret;
 }
 
@@ -113,9 +112,9 @@ void mproc_yield(void) {
 
 int mproc_join(uint8_t pid)
 {
-    int ret = 0;
-    if (! __in_proc_state(proc_running, blocked)) { ret = -1; }
-    else
+    int ret = OK;
+    ret = __in_proc_state(proc_running, blocked); 
+    if (ret == OK)
     {
         __in_join(pid, proc_running, joins);
         stats->blocked_procs++;
@@ -140,9 +139,8 @@ void scheduler(void)
         list_for_each(h, &joins->next) {
             tmp_join = list_entry(h,map_join, next);
             // if pid not present at ready and blocked, join can free
-            if ( (! __found_join(tmp_join->pid_joined, ready)) && (! __found_join(tmp_join->pid_joined, blocked)) )
+            if ( (__found_join(tmp_join->pid_joined, ready) == NOTFOUND) && (__found_join(tmp_join->pid_joined, blocked) == NOTFOUND) )
             {
-                __print_stats(stats);
                 __out_join(tmp_join);                            
                 __out_proc_state(tmp_join->proc);                            
                 __in_proc_state(tmp_join->proc, ready);
@@ -156,7 +154,6 @@ void scheduler(void)
             tmp_state = list_entry(i, proc_state, lower);
             //printf ("### STATE READY prio:%d\n",tmp->prio);
             list_for_each(j,&tmp_state->proc_head->next) { //iterator over procs
-                there_are_procs = true;
                 proc_running = list_entry(j, proc_struct, next);
                 //printf ("#PROC pid:%d\n",proc_running->pid);
                 __out_proc_state(proc_running);
@@ -168,7 +165,7 @@ void scheduler(void)
                 new_sched_round=true;
                 break;
             }
-        if (stats->blocked_procs > 0) {there_are_procs = true; }
+        if (stats->blocked_procs > 0 || stats->ready_procs > 0) {there_are_procs = true; }
         if (new_sched_round) break; //some proc executed, we need init sched again
         }   
     }
