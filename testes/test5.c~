@@ -42,7 +42,7 @@ void *f1(void *arg)
 	printf("Start F1\n");
    
     int pid2 = mproc_create(2, f2, NULL);    
-    printf ("Waiting for F2\n", pid2);
+    printf ("Waiting for F2\n");
     mproc_join(pid2);
 
     printf ("End F1\n");
@@ -53,11 +53,10 @@ void *f1(void *arg)
 int main (int argc, char *argv[])
 {
     int system;
-    int pid1;
 
     system = libsisop_init();    
     
-    pid1 = mproc_create(1, f1, NULL);  
+    mproc_create(1, f1, NULL);  
     
     scheduler();
 
