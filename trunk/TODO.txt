@@ -1,3 +1,2 @@
 documentar (criar um manual e preencher o relatorio) - lahti
 refatoracao - germano e lahti
-melhorar makefile - lahti
