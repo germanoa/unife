@@ -240,7 +240,6 @@ void scheduler(void)
                 stats->ready_procs++;
             }
         }
-
         new_sched_round = false;
         list_for_each(i, &ready->lower) { //iterator over prios of ready state
             tmp_state = list_entry(i, proc_state, lower);
