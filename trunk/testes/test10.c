@@ -1,15 +1,15 @@
 /*
- * - Test 9 -
- * Testa validacao de processos maximos simultaneos. Podem existir n durante execucao.
+ * - Test 10 -
+ * Find a random number by adding or subtracting a number. Try to do in minimal steps as possible.
  *
- * - Resultado Esperado:
- * Sistema criará 10000 processos
  */
 
 #include <stdio.h>
+#include <time.h>
+#include <stdlib.h>
 #include <include/unucleo.h>
 
-#define NUMBER_TO_FOUND 500
+int NUMBER_TO_FOUND;
 
 void *update(void *arg)
 {
@@ -49,7 +49,7 @@ void *printNumber(void *arg)
 		
 		if ( (int) *number == NUMBER_TO_FOUND )
 		{
-			printf("Parabens voce acertou o numero em %d\n", passos);
+			printf("Parabens voce acertou o numero em %d passos!\n", passos);
 			break;
 		}
 		
@@ -77,6 +77,8 @@ int main (int argc, char *argv[])
     number = 0;
 
     system = libsisop_init();    
+    srand (time (NULL));
+    NUMBER_TO_FOUND = rand() % 10000;
     
     printf("Descubra o numero magico no menor numero de passos somando ou subtraindo um valor inteiro:\n");
     pid = mproc_create(MEDIUM, printNumber, &number);
