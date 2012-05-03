@@ -3,4 +3,4 @@ clean:
 
 install:
 	gcc -fPIC -g -c src/unucleo.c -o lib/libsisop.a -I. -Wall
-	for i in `ls -1 testes/ |cut -d'.' -f1`; do gcc -o $$i.o testes/$$i.c -I. -Llib -lsisop -Wall -g; done
+	for i in `ls -1 testes/ |cut -d'.' -f1`; do gcc -o bin/$$i.o testes/$$i.c -I. -Llib -lsisop -Wall -g; done
