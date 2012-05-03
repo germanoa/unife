@@ -206,6 +206,14 @@ static inline void __print_stats(stats_unife *stats)
     printf("######################################################\n");
 }
 
+static inline void __dispatcher(void)
+{
+    stats->pid_proc_running_now = proc_running->pid;
+    stats->nr_switches_procs++;
+    stats->last_proc_state = RUNNING;
+    swapcontext(&c_sched, &proc_running->context);
+}
+
 
 void scheduler(void)
 {
@@ -240,14 +248,10 @@ void scheduler(void)
                 proc_running = list_entry(j, proc_struct, next);
                 __out_proc_state(proc_running);
                 stats->ready_procs--;
-                //dispatcher
-                stats->pid_proc_running_now = proc_running->pid;
-                stats->nr_switches_procs++;
-                stats->last_proc_state = RUNNING;
-                swapcontext(&c_sched, &proc_running->context);
+                __dispatcher();
                 if (stats->last_proc_state == RUNNING) { stats->nr_parallel_procs--; }; //to control MAXPROC simultaneous
                 new_sched_round=true;
-                break;
+                break; //just the first., we need init sched again
             }
         if (stats->blocked_procs > 0 || stats->ready_procs > 0) {there_are_procs = true; }
         if (new_sched_round) break; //some proc executed, we need init sched again
