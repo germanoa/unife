@@ -6,7 +6,7 @@
  * Germano Andersson <germanoa@gmail.com>
  * Felipe Lahti <felipe.lahti@gmail.com>
  *
- * 2012-XX-XX
+ * 2012-05-03
  */
 
 
@@ -34,7 +34,7 @@ int libsisop_init()
     if ( (ready = malloc(sizeof(proc_state))) == NULL ) {return MALLOCERR; }
     INIT_LIST_HEAD(&ready->lower); // init queue for state ready
     tmp_state = ready;
-    for (i=HIGH;i<=LOW;i++)
+    for (i=HIGH+1;i<=LOW;i++) //HIGH+1 because HIGH priority reserved to OS but nos used
     {
         if ( (lower_state = malloc(sizeof(proc_state))) == NULL ) {return MALLOCERR; }
         list_add(&(lower_state->lower), &(tmp_state->lower));
@@ -48,7 +48,7 @@ int libsisop_init()
     if ( (blocked = malloc(sizeof(proc_state))) == NULL ) { return MALLOCERR; }
     INIT_LIST_HEAD(&blocked->lower); //init queue for state blocked
     tmp_state = blocked;
-    for (i=HIGH;i<=LOW;i++)
+    for (i=HIGH+1;i<=LOW;i++) //HIGH+1 because HIGH priority reserved to OS but nos used
     {
         if ( (lower_state = malloc(sizeof(proc_state))) == NULL ) {return MALLOCERR; }
         list_add(&(lower_state->lower), &(tmp_state->lower));
@@ -66,6 +66,8 @@ int libsisop_init()
     stats->nr_switches_procs = 0;
     stats->nr_scheds=0;
     stats->last_pid=MINPROC;
+    stats->nr_procs=0;
+    stats->nr_parallel_procs=0;
 
     //Create and alloc mem to join procs map
     if ( (joins = malloc(sizeof(map_join))) == NULL ) { return MALLOCERR; }
@@ -77,11 +79,33 @@ int libsisop_init()
     return OK;
 }
 
+static inline int __in_proc_state(proc_struct *proc, proc_state *state)
+{
+    int ret = OK;
+    proc_state *tmp_state, *tmp;
+    tmp_state = state;
+    struct list_head  *i;
+    list_for_each(i, &tmp_state->lower) {
+        tmp = list_entry(i, proc_state, lower);
+        if (tmp == NULL) { ret = NULLERR; }
+        else if (proc->prio == tmp->prio)
+        {
+                list_add_tail(&(proc->next), &(tmp->proc_head->next));
+        }
+    }
+    return ret;
+}
+
+static inline void __out_proc_state(proc_struct *proc)
+{
+    list_del(&proc->next);
+}
+
 int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
 {
     if (prio < MEDIUM || prio > LOW) { return PRIOERR; }
 
-    if (stats->last_pid == MAXPROC) { return MAXPROCERR; }
+    if (stats->nr_parallel_procs == MAXPROC) { return MAXPROCERR; }
     
     //Populate PCB
     proc_struct *new;
@@ -94,9 +118,11 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
     new->context.uc_stack.ss_sp = malloc(STACK_SIZE);
     new->context.uc_stack.ss_size = STACK_SIZE;
     new->context.uc_link = &c_sched;   
-    makecontext(&new->context,(void (*)(void))start_routine,1,arg); //testando
+    makecontext(&new->context,(void (*)(void))start_routine,1,arg);
 
     stats->ready_procs++;
+    stats->nr_procs++;
+    stats->nr_parallel_procs++;
 
     int ret;
     ret = __in_proc_state(new, ready);
@@ -104,11 +130,52 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg)
     return ret;
 }
 
-void mproc_yield(void) {
-    __in_proc_state(proc_running, ready);
-    stats->ready_procs++;
-    swapcontext(&proc_running->context, &c_sched);
+int mproc_yield(void) {
+    int ret;
+    ret = __in_proc_state(proc_running, ready);
+    if (ret == OK)
+    {
+        stats->last_proc_state = READY;
+        stats->ready_procs++;
+        swapcontext(&proc_running->context, &c_sched);
+    }
+    return ret;
 }
+
+static inline int __in_join(uint8_t pid, proc_struct *proc, map_join *joins)
+{
+    int ret = OK;
+    map_join *tmp_join;
+    if ( (tmp_join = malloc(sizeof(map_join))) == NULL ) { ret = MALLOCERR; }
+    else
+    {
+        tmp_join->proc = proc;
+        tmp_join->pid_joined = pid;
+        list_add_tail(&(tmp_join->next), &(joins->next));
+    }
+    return ret;
+}
+
+static inline void __out_join(map_join *join)
+{
+    list_del(&join->next);
+}
+
+static inline int __found_join(uint8_t pid, proc_state *state)
+{
+    proc_struct *tmp_proc;
+    proc_state *tmp_state;
+    struct list_head *i,*j;
+    list_for_each(i, &state->lower) {
+        tmp_state = list_entry(i, proc_state, lower);
+        list_for_each(j,&tmp_state->proc_head->next) { //iterator over procs
+            tmp_proc = list_entry(j, proc_struct, next);
+            if (tmp_proc->pid == pid) { return FOUND; }
+        }
+    }
+    return NOTFOUND;
+}
+
 
 int mproc_join(uint8_t pid)
 {
@@ -116,12 +183,29 @@ int mproc_join(uint8_t pid)
     ret = __in_proc_state(proc_running, blocked); 
     if (ret == OK)
     {
+        stats->last_proc_state = BLOCKED;
         __in_join(pid, proc_running, joins);
         stats->blocked_procs++;
         swapcontext(&proc_running->context, &c_sched);
     }
     return ret;
 }
+
+static inline void __print_stats(stats_unife *stats)
+{
+    printf("######################################################\n");
+    printf("# SYSTEM STATS\n");
+    printf("#\n");
+    printf("# Ready process: %d\n",stats->ready_procs);
+    printf("# Blocked process: %d\n",stats->blocked_procs);
+    printf("# PID last proc running: %d\n",stats->pid_proc_running_now);
+    printf("# Proc switches: %d\n",stats->nr_switches_procs);
+    printf("# Schedules: %d\n",stats->nr_scheds);
+    printf("# Total procs: %d\n",stats->nr_procs);
+    printf("# Last PID used: %d\n",stats->last_pid);
+    printf("######################################################\n");
+}
+
 
 void scheduler(void)
 {
@@ -152,16 +236,16 @@ void scheduler(void)
         new_sched_round = false;
         list_for_each(i, &ready->lower) { //iterator over prios of ready state
             tmp_state = list_entry(i, proc_state, lower);
-            //printf ("### STATE READY prio:%d\n",tmp->prio);
             list_for_each(j,&tmp_state->proc_head->next) { //iterator over procs
                 proc_running = list_entry(j, proc_struct, next);
-                //printf ("#PROC pid:%d\n",proc_running->pid);
                 __out_proc_state(proc_running);
                 stats->ready_procs--;
-                //aqui vai o dispatcher
+                //dispatcher
                 stats->pid_proc_running_now = proc_running->pid;
                 stats->nr_switches_procs++;
+                stats->last_proc_state = RUNNING;
                 swapcontext(&c_sched, &proc_running->context);
+                if (stats->last_proc_state == RUNNING) { stats->nr_parallel_procs--; }; //to control MAXPROC simultaneous
                 new_sched_round=true;
                 break;
             }

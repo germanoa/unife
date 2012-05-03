@@ -1,7 +1,6 @@
+clean:
+	rm -f bin/*.o; rm -f *.o; rm -f lib/*.a;
+
 install:
 	gcc -fPIC -g -c src/unucleo.c -o lib/libsisop.a -I. -Wall
-	for i in `seq 1 7`; do gcc -o bin/test$$i.o testes/test$$i.c -I. -Llib -lsisop -Wall -g; done
-
-clean:
-	rm -f bin/*.o; rm -f lib/*.a;
-
+	for i in `ls -1 testes/ |cut -d'.' -f1`; do gcc -o $$i.o testes/$$i.c -I. -Llib -lsisop -Wall -g; done
