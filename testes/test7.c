@@ -1,6 +1,6 @@
 /*
  * - Test 7 -
- * Teste prioridades 2
+ * Teste prioridades 2. Yield apenas para processos de prioridade superior ou igual.
  */
 
 #include <stdio.h>

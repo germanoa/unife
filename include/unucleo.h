@@ -3,12 +3,10 @@
  *
  * headers do unife.
  * 
- * internal functions (__xxx) must not be used directly.
- * 
  * Germano Andersson <germanoa@gmail.com>
  * Felipe Lahti <felipe.lahti@gmail.com>
  *
- * 2012-XX-XX
+ * 2012-05-03
  */
 
 #include <include/list.h>
@@ -16,9 +14,6 @@
 
 #include <ucontext.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <malloc.h>
-
 
 /*
  * process capacity
@@ -78,7 +73,7 @@ int mproc_create(uint8_t prio, void * (*start_routine)(void*), void * arg);
 /*
  * Yielding process, nothing interesting to do...
  */
-void mproc_yield(void);
+int mproc_yield(void);
 
 /*
  * Synchronized with the end of process pid = pid.
@@ -91,63 +86,6 @@ struct map_join {
     uint8_t pid_joined;
     struct list_head next;
 };
-
-static inline int __in_join(uint8_t pid, proc_struct *proc, map_join *joins)
-{
-    int ret = OK;
-    map_join *tmp_join;
-    if ( (tmp_join = malloc(sizeof(map_join))) == NULL ) { ret = MALLOCERR; }
-    else
-    {
-        tmp_join->proc = proc;
-        tmp_join->pid_joined = pid;
-        list_add_tail(&(tmp_join->next), &(joins->next));
-    }
-    return ret;
-}
-
-static inline void __out_join(map_join *join)
-{
-    list_del(&join->next);
-}
-
-static inline int __found_join(uint8_t pid, proc_state *state)
-{
-    proc_struct *tmp_proc;
-    proc_state *tmp_state;
-    struct list_head *i,*j;
-    list_for_each(i, &state->lower) { 
-        tmp_state = list_entry(i, proc_state, lower);
-        list_for_each(j,&tmp_state->proc_head->next) { //iterator over procs
-            tmp_proc = list_entry(j, proc_struct, next);
-            if (tmp_proc->pid == pid) { return FOUND; }
-        }
-    }
-    return NOTFOUND;
-}
-
-
-static inline int __in_proc_state(proc_struct *proc, proc_state *state)
-{
-    int ret = OK;
-    proc_state *tmp_state, *tmp;
-    tmp_state = state;
-    struct list_head  *i;
-    list_for_each(i, &tmp_state->lower) {
-        tmp = list_entry(i, proc_state, lower);
-        if (tmp == NULL) { ret = NULLERR; }
-        else if (proc->prio == tmp->prio)
-        {
-                list_add_tail(&(proc->next), &(tmp->proc_head->next));   
-        }
-    }
-    return ret;
-}
-
-static inline void __out_proc_state(proc_struct *proc)
-{
-    list_del(&proc->next);
-}
 
 /*
  * Init unife.
@@ -169,19 +107,8 @@ struct stats_unife {
     uint8_t pid_proc_running_now;
     int nr_switches_procs;
     int nr_scheds;
-    uint8_t last_pid;
+    int last_pid;
+    int nr_procs;
+    int nr_parallel_procs;
+    uint8_t last_proc_state;    
 };
-
-static inline void __print_stats(stats_unife *stats)
-{
-    printf("######################################################\n");
-    printf("# SYSTEM STATS\n");
-    printf("#\n");
-    printf("# Ready process: %d\n",stats->ready_procs);
-    printf("# Blocked process: %d\n",stats->blocked_procs);
-    printf("# PID last proc running: %d\n",stats->pid_proc_running_now);
-    printf("# Proc switches: %d\n",stats->nr_switches_procs);
-    printf("# Schedules: %d\n",stats->nr_scheds);
-    printf("# Last PID used: %d\n",stats->last_pid);
-    printf("######################################################\n");
-}
