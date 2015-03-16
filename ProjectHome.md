@@ -1,0 +1,1 @@
+Uma biblioteca de threads em nível de usuário N:1 (threads:processo).
